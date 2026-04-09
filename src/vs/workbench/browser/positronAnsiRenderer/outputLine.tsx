@@ -5,7 +5,7 @@
 
 import './outputLine.css';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { OutputRun } from './outputRun.js';
 import { ANSIHyperlink, ANSIOutputLine, ANSIOutputRun } from '../../../base/common/ansiOutput.js';
 import { CancellationTokenSource } from '../../../base/common/cancellation.js';
@@ -129,32 +129,57 @@ const applyLinksToOutputLine = (
  */
 export const OutputLine = (props: OutputLineProps) => {
 	const services = usePositronReactServicesContext();
-	const [resolvedOutputLine, setResolvedOutputLine] = useState(props.outputLine);
+	const [resolvedLinks, setResolvedLinks] = useState<readonly IResolvedLink[]>([]);
+	const lastLineKeyRef = useRef<string | null>(null);
 
 	const lineText = useMemo(
 		() => props.outputLine.outputRuns.map(run => run.text).join(''),
 		[props.outputLine]
 	);
 
+	const lineKey = useMemo(() => JSON.stringify({
+		sessionId: props.linkContext?.sessionId,
+		languageId: props.linkContext?.languageId,
+		outputId: props.linkContext?.outputId,
+		line: lineText,
+	}), [
+		lineText,
+		props.linkContext?.languageId,
+		props.linkContext?.outputId,
+		props.linkContext?.sessionId,
+	]);
+
+	const renderedOutputLine = useMemo(() => {
+		return resolvedLinks.length
+			? applyLinksToOutputLine(props.outputLine, resolvedLinks)
+			: props.outputLine;
+	}, [props.outputLine, resolvedLinks]);
+
 	useEffect(() => {
-		setResolvedOutputLine(props.outputLine);
+		const keyChanged = lastLineKeyRef.current !== lineKey;
+		lastLineKeyRef.current = lineKey;
+
+		if (keyChanged) {
+			setResolvedLinks([]);
+		}
 
 		if (!props.linkContext || !lineText.length) {
 			return;
 		}
 
 		const cts = new CancellationTokenSource();
+		const requestKey = lineKey;
 		void services.positronConsoleService.provideConsoleLinks({
 			sessionId: props.linkContext.sessionId,
 			languageId: props.linkContext.languageId,
 			outputId: props.linkContext.outputId,
 			line: lineText,
 		}, cts.token).then(links => {
-			if (cts.token.isCancellationRequested || !links.length) {
+			if (cts.token.isCancellationRequested || lastLineKeyRef.current !== requestKey) {
 				return;
 			}
 
-			setResolvedOutputLine(applyLinksToOutputLine(props.outputLine, links));
+			setResolvedLinks(links);
 		}).catch(error => {
 			services.logService.error('Failed to resolve console links.', error);
 		});
@@ -163,23 +188,23 @@ export const OutputLine = (props: OutputLineProps) => {
 			cts.dispose(true);
 		};
 	}, [
+		lineKey,
 		lineText,
 		props.linkContext?.languageId,
 		props.linkContext?.outputId,
 		props.linkContext?.sessionId,
-		props.outputLine,
 		services,
 	]);
 
 	// If there are no output runs, render a line break for an empty line.
-	if (!resolvedOutputLine.outputRuns.length) {
+	if (!renderedOutputLine.outputRuns.length) {
 		return <br />;
 	}
 
 	// Render.
 	return (
 		<div>
-			{resolvedOutputLine.outputRuns.map(outputRun =>
+			{renderedOutputLine.outputRuns.map(outputRun =>
 				<OutputRun key={outputRun.id} outputRun={outputRun} />
 			)}
 		</div>
