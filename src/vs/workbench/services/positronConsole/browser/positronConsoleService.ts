@@ -4,6 +4,7 @@
  *--------------------------------------------------------------------------------------------*/
 
 import { localize } from '../../../../nls.js';
+import { CancellationToken } from '../../../../base/common/cancellation.js';
 import { generateUuid } from '../../../../base/common/uuid.js';
 import { Event, Emitter } from '../../../../base/common/event.js';
 import { ICodeEditor } from '../../../../editor/browser/editorBrowser.js';
@@ -35,7 +36,7 @@ import { RuntimeItemStartupFailure } from './classes/runtimeItemStartupFailure.j
 import { ActivityItem, ActivityItemOutput, RuntimeItemActivity } from './classes/runtimeItemActivity.js';
 import { ActivityItemInput, ActivityItemInputState } from './classes/activityItemInput.js';
 import { ActivityItemStream, ActivityItemStreamType } from './classes/activityItemStream.js';
-import { DidNavigateInputHistoryUpEventArgs, IPositronConsoleInstance, IPositronConsoleService, POSITRON_CONSOLE_VIEW_ID, PositronConsoleState, SessionAttachMode } from './interfaces/positronConsoleService.js';
+import { DidNavigateInputHistoryUpEventArgs, IPositronConsoleInstance, IPositronConsoleLink, IPositronConsoleLinkContext, IPositronConsoleService, POSITRON_CONSOLE_VIEW_ID, PositronConsoleState, SessionAttachMode } from './interfaces/positronConsoleService.js';
 import { ILanguageRuntimeExit, ILanguageRuntimeInfo, ILanguageRuntimeMessage, ILanguageRuntimeMessageOutput, ILanguageRuntimeMessageOutputData, ILanguageRuntimeMessageUpdateOutput, ILanguageRuntimeMetadata, LanguageRuntimeSessionMode, RuntimeCodeExecutionMode, RuntimeCodeFragmentStatus, RuntimeErrorBehavior, RuntimeExitReason, RuntimeOnlineState, RuntimeOutputKind, RuntimeState, formatLanguageRuntimeMetadata, formatLanguageRuntimeSession } from '../../languageRuntime/common/languageRuntimeService.js';
 import { ILanguageRuntimeSession, IRuntimeSessionMetadata, IRuntimeSessionService, RuntimeStartMode } from '../../runtimeSession/common/runtimeSessionService.js';
 import { UiFrontendEvent } from '../../languageRuntime/common/positronUiComm.js';
@@ -66,6 +67,62 @@ const TRACE_OUTPUT_MAX_LENGTH = 1000;
  * The prefix for execution IDs affiliated with the Positron Console
  */
 export const POSITRON_CONSOLE_EXEC_PREFIX = 'fragment-';
+
+type ConsoleLinkProviderFn = (
+	context: IPositronConsoleLinkContext,
+	token: CancellationToken
+) => Promise<readonly IPositronConsoleLink[]>;
+
+interface IRegisteredConsoleLinkProvider {
+	handle: number;
+	extensionId: string;
+	languageId: string;
+	provideLinks: ConsoleLinkProviderFn;
+}
+
+const normalizeAndMergeConsoleLinks = (
+	context: IPositronConsoleLinkContext,
+	links: readonly IPositronConsoleLink[]
+): readonly IPositronConsoleLink[] => {
+	const normalized = links
+		.filter(link => Number.isInteger(link.startIndex) && Number.isInteger(link.length) && link.length > 0)
+		.map(link => {
+			const startIndex = Math.max(0, Math.min(link.startIndex, context.line.length));
+			const maxLength = Math.max(0, context.line.length - startIndex);
+			const length = Math.min(link.length, maxLength);
+
+			return {
+				...link,
+				startIndex,
+				length,
+			};
+		})
+		.filter(link => link.length > 0)
+		.sort((left, right) => {
+			if (left.startIndex !== right.startIndex) {
+				return left.startIndex - right.startIndex;
+			}
+			return right.length - left.length;
+		});
+
+	const merged: IPositronConsoleLink[] = [];
+	for (const link of normalized) {
+		const previous = merged[merged.length - 1];
+		if (!previous) {
+			merged.push(link);
+			continue;
+		}
+
+		const previousEnd = previous.startIndex + previous.length;
+		if (link.startIndex < previousEnd) {
+			continue;
+		}
+
+		merged.push(link);
+	}
+
+	return merged;
+};
 
 //#region Helper Functions
 
@@ -302,6 +359,7 @@ export class PositronConsoleService extends Disposable implements IPositronConso
 	 * A map of the Positron console instances by session ID.
 	 */
 	private readonly _positronConsoleInstancesBySessionId = new Map<string, PositronConsoleInstance>();
+	private readonly _consoleLinkProviders = new Map<number, IRegisteredConsoleLinkProvider>();
 
 	/**
 	 * The active Positron console instance.
@@ -900,6 +958,63 @@ export class PositronConsoleService extends Disposable implements IPositronConso
 			return this._activePositronConsoleInstance.getWidthInChars();
 		}
 		throw new Error('No active Positron console instance; cannot get width.');
+	}
+
+	registerConsoleLinkProvider(
+		handle: number,
+		extensionId: string,
+		languageId: string,
+		provider: ConsoleLinkProviderFn
+	): IDisposable {
+		this._consoleLinkProviders.set(handle, {
+			handle,
+			extensionId,
+			languageId,
+			provideLinks: provider,
+		});
+
+		return {
+			dispose: () => {
+				const current = this._consoleLinkProviders.get(handle);
+				if (current?.provideLinks === provider) {
+					this._consoleLinkProviders.delete(handle);
+				}
+			}
+		};
+	}
+
+	async provideConsoleLinks(
+		context: IPositronConsoleLinkContext,
+		token: CancellationToken
+	): Promise<readonly IPositronConsoleLink[]> {
+		if (!context.line.length) {
+			return [];
+		}
+
+		const providers = [...this._consoleLinkProviders.values()]
+			.filter(provider => provider.languageId === context.languageId);
+
+		if (!providers.length) {
+			return [];
+		}
+
+		const resolved = await Promise.all(providers.map(async provider => {
+			try {
+				return await provider.provideLinks(context, token);
+			} catch (error) {
+				this._logService.error(
+					`Console link provider failed for ${provider.extensionId} (${provider.languageId}).`,
+					error
+				);
+				return [];
+			}
+		}));
+
+		if (token.isCancellationRequested) {
+			return [];
+		}
+
+		return normalizeAndMergeConsoleLinks(context, resolved.flat());
 	}
 
 	private onConsoleWidthChange(newWidth: number) {

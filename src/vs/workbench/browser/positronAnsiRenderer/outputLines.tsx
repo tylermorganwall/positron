@@ -7,12 +7,15 @@
 import './outputLines.css';
 
 // Other dependencies.
-import { OutputLine } from './outputLine.js';
+import { OutputLine, type OutputLineLinkContext } from './outputLine.js';
 import { ANSIOutputLine } from '../../../base/common/ansiOutput.js';
+
+export type { OutputLineLinkContext } from './outputLine.js';
 
 // OutputLinesProps interface.
 export interface OutputLinesProps {
 	readonly outputLines: readonly ANSIOutputLine[];
+	readonly linkContext?: OutputLineLinkContext;
 }
 
 /**
@@ -25,7 +28,7 @@ export const OutputLines = (props: OutputLinesProps) => {
 	return (
 		<>
 			{props.outputLines.map(outputLine =>
-				<OutputLine key={outputLine.id} outputLine={outputLine} />
+				<OutputLine key={outputLine.id} outputLine={outputLine} linkContext={props.linkContext} />
 			)}
 		</>
 	);

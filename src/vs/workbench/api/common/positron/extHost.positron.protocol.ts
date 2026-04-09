@@ -136,16 +136,35 @@ export interface MainThreadContextKeyServiceShape {
 // Interface to the main thread exposed by the extension host
 export interface ExtHostContextKeyServiceShape { }
 
+export interface ConsoleLinkContextDto {
+	sessionId: string;
+	languageId: string;
+	outputId?: string;
+	line: string;
+}
+
+export interface ConsoleLinkDto {
+	startIndex: number;
+	length: number;
+	target: UriComponents;
+	tooltip?: string;
+	line?: number;
+	column?: number;
+}
+
 export interface MainThreadConsoleServiceShape {
 	$getConsoleWidth(): Promise<number>;
 	$getSessionIdForLanguage(languageId: string): Promise<string | undefined>;
 	$tryPasteText(sessionId: string, text: string): void;
+	$registerConsoleLinkProvider(handle: number, extensionId: string, languageId: string): void;
+	$unregisterConsoleLinkProvider(handle: number): void;
 }
 
 export interface ExtHostConsoleServiceShape {
 	$onDidChangeConsoleWidth(newWidth: number): void;
 	$addConsole(sessionId: string): void;
 	$removeConsole(sessionId: string): void;
+	$provideConsoleLinks(handle: number, context: ConsoleLinkContextDto, token: CancellationToken): Promise<ConsoleLinkDto[]>;
 }
 
 export interface MainThreadMethodsShape { }

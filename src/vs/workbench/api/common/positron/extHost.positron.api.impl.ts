@@ -222,6 +222,9 @@ export function createPositronApiFactoryAndRegisterActors(accessor: ServicesAcce
 			getConsoleForLanguage(languageId: string) {
 				return extHostConsoleService.getConsoleForLanguage(languageId);
 			},
+			registerConsoleLinkProvider(languageId: string, provider: positron.ConsoleLinkProvider): vscode.Disposable {
+				return extHostConsoleService.registerConsoleLinkProvider(extension.identifier.value, languageId, provider);
+			},
 			get onDidChangeConsoleWidth() {
 				return extHostConsoleService.onDidChangeConsoleWidth;
 			},

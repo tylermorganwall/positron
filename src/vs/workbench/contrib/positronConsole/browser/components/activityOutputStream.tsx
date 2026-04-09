@@ -9,10 +9,12 @@ import './activityOutputStream.css';
 // Other dependencies.
 import { ConsoleOutputLines } from './consoleOutputLines.js';
 import { ActivityItemStream } from '../../../../services/positronConsole/browser/classes/activityItemStream.js';
+import { IPositronConsoleInstance } from '../../../../services/positronConsole/browser/interfaces/positronConsoleService.js';
 
 // ActivityOutputStreamProps interface.
 export interface ActivityOutputStreamProps {
 	activityItemStream: ActivityItemStream;
+	positronConsoleInstance: IPositronConsoleInstance;
 }
 
 /**
@@ -23,6 +25,12 @@ export interface ActivityOutputStreamProps {
 export const ActivityOutputStream = (props: ActivityOutputStreamProps) => {
 	// Render.
 	return (
-		<ConsoleOutputLines outputLines={props.activityItemStream.outputLines} />
+		<ConsoleOutputLines
+			outputLines={props.activityItemStream.outputLines}
+			linkContext={{
+				sessionId: props.positronConsoleInstance.sessionMetadata.sessionId,
+				languageId: props.positronConsoleInstance.runtimeMetadata.languageId,
+			}}
+		/>
 	);
 };

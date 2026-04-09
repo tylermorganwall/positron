@@ -8,7 +8,9 @@ import { Emitter } from '../../../../base/common/event.js';
 import * as extHostProtocol from './extHost.positron.protocol.js';
 import { ExtHostConsole } from './extHostConsole.js';
 import { ILogService } from '../../../../platform/log/common/log.js';
-import { dispose } from '../../../../base/common/lifecycle.js';
+import { dispose, toDisposable } from '../../../../base/common/lifecycle.js';
+import { URI } from '../../../../base/common/uri.js';
+import type * as vscode from 'vscode';
 
 export class ExtHostConsoleService implements extHostProtocol.ExtHostConsoleServiceShape {
 
@@ -22,6 +24,14 @@ export class ExtHostConsoleService implements extHostProtocol.ExtHostConsoleServ
 	 * Kept in sync with consoles in `MainThreadConsoleService`
 	 */
 	private readonly _extHostConsolesBySessionId = new Map<string, ExtHostConsole>();
+
+	private readonly _consoleLinkProviders = new Map<number, {
+		extensionId: string;
+		languageId: string;
+		provider: positron.ConsoleLinkProvider;
+	}>();
+
+	private _nextConsoleLinkProviderHandle = 0;
 
 	private readonly _onDidChangeConsoleWidth = new Emitter<number>();
 
@@ -74,6 +84,27 @@ export class ExtHostConsoleService implements extHostProtocol.ExtHostConsoleServ
 		return extHostConsole.getConsole();
 	}
 
+	registerConsoleLinkProvider(
+		extensionId: string,
+		languageId: string,
+		provider: positron.ConsoleLinkProvider
+	): vscode.Disposable {
+		const handle = this._nextConsoleLinkProviderHandle++;
+
+		this._consoleLinkProviders.set(handle, {
+			extensionId,
+			languageId,
+			provider,
+		});
+
+		this._proxy.$registerConsoleLinkProvider(handle, extensionId, languageId);
+
+		return toDisposable(() => {
+			this._consoleLinkProviders.delete(handle);
+			this._proxy.$unregisterConsoleLinkProvider(handle);
+		});
+	}
+
 	// --- from main thread
 
 	// Called when the console width changes; fires the onDidChangeConsoleWidth event to any
@@ -95,5 +126,38 @@ export class ExtHostConsoleService implements extHostProtocol.ExtHostConsoleServ
 		// "Dispose" of an `ExtHostConsole`, ensuring that future API calls warn / error
 		dispose(extHostConsole);
 	}
-}
 
+	async $provideConsoleLinks(
+		handle: number,
+		context: extHostProtocol.ConsoleLinkContextDto,
+		token: vscode.CancellationToken
+	): Promise<extHostProtocol.ConsoleLinkDto[]> {
+		const entry = this._consoleLinkProviders.get(handle);
+		if (!entry) {
+			return [];
+		}
+
+		let links: readonly positron.ConsoleLink[] | null | undefined;
+		try {
+			links = await entry.provider.provideConsoleLinks(context, token);
+		} catch (error) {
+			this._logService.error(`Console link provider failed for ${entry.extensionId}:`, error);
+			return [];
+		}
+
+		if (!links?.length) {
+			return [];
+		}
+
+		return links
+			.filter(link => Number.isInteger(link.startIndex) && Number.isInteger(link.length) && link.length > 0)
+			.map(link => ({
+				startIndex: link.startIndex,
+				length: link.length,
+				target: URI.from(link.target),
+				tooltip: link.tooltip,
+				line: link.line,
+				column: link.column,
+			}));
+	}
+}

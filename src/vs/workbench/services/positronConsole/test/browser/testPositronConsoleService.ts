@@ -5,8 +5,9 @@
 
 import { Emitter, Event } from '../../../../../base/common/event.js';
 import { IDisposable } from '../../../../../base/common/lifecycle.js';
+import { CancellationToken } from '../../../../../base/common/cancellation.js';
 import { ICodeEditor } from '../../../../../editor/browser/editorBrowser.js';
-import { DidNavigateInputHistoryUpEventArgs, IPositronConsoleInstance, IPositronConsoleService, PositronConsoleState, SessionAttachMode } from '../../browser/interfaces/positronConsoleService.js';
+import { DidNavigateInputHistoryUpEventArgs, IPositronConsoleInstance, IPositronConsoleLink, IPositronConsoleLinkContext, IPositronConsoleService, PositronConsoleState, SessionAttachMode } from '../../browser/interfaces/positronConsoleService.js';
 import { RuntimeItem } from '../../browser/classes/runtimeItem.js';
 import { ILanguageRuntimeMetadata, RuntimeCodeExecutionMode, RuntimeErrorBehavior } from '../../../languageRuntime/common/languageRuntimeService.js';
 import { ILanguageRuntimeSession, IRuntimeSessionMetadata } from '../../../runtimeSession/common/runtimeSessionService.js';
@@ -157,6 +158,27 @@ export class TestPositronConsoleService implements IPositronConsoleService {
 	 */
 	getConsoleWidth(): number {
 		return this._consoleWidth;
+	}
+
+	registerConsoleLinkProvider(
+		_handle: number,
+		_extensionId: string,
+		_languageId: string,
+		_provider: (
+			_context: IPositronConsoleLinkContext,
+			_token: CancellationToken
+		) => Promise<readonly IPositronConsoleLink[]>
+	): IDisposable {
+		return {
+			dispose: () => { }
+		};
+	}
+
+	async provideConsoleLinks(
+		_context: IPositronConsoleLinkContext,
+		_token: CancellationToken
+	): Promise<readonly IPositronConsoleLink[]> {
+		return [];
 	}
 
 	/**

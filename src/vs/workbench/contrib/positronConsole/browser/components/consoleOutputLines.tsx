@@ -5,11 +5,12 @@
 
 // Other dependencies.
 import { ANSIOutputLine } from '../../../../../base/common/ansiOutput.js';
-import { OutputLines } from '../../../../browser/positronAnsiRenderer/outputLines.js';
+import { OutputLines, type OutputLineLinkContext } from '../../../../browser/positronAnsiRenderer/outputLines.js';
 
 // ConsoleOutputLinesProps interface.
 export interface ConsoleOutputLinesProps {
 	readonly outputLines: readonly ANSIOutputLine[];
+	readonly linkContext?: OutputLineLinkContext;
 }
 
 /**

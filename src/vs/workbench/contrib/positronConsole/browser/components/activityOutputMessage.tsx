@@ -9,10 +9,12 @@ import './activityOutputMessage.css';
 // Other dependencies.
 import { ConsoleOutputLines } from './consoleOutputLines.js';
 import { ActivityItemOutputMessage } from '../../../../services/positronConsole/browser/classes/activityItemOutputMessage.js';
+import { IPositronConsoleInstance } from '../../../../services/positronConsole/browser/interfaces/positronConsoleService.js';
 
 // ActivityOutputMessageProps interface.
 export interface ActivityOutputMessageProps {
 	activityItemOutputMessage: ActivityItemOutputMessage;
+	positronConsoleInstance: IPositronConsoleInstance;
 }
 
 /**
@@ -23,6 +25,13 @@ export interface ActivityOutputMessageProps {
 export const ActivityOutputMessage = (props: ActivityOutputMessageProps) => {
 	// Render.
 	return (
-		<ConsoleOutputLines outputLines={props.activityItemOutputMessage.outputLines} />
+		<ConsoleOutputLines
+			outputLines={props.activityItemOutputMessage.outputLines}
+			linkContext={{
+				sessionId: props.positronConsoleInstance.sessionMetadata.sessionId,
+				languageId: props.positronConsoleInstance.runtimeMetadata.languageId,
+				outputId: props.activityItemOutputMessage.outputId,
+			}}
+		/>
 	);
 };

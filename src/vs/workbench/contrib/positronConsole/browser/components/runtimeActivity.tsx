@@ -48,9 +48,9 @@ export const RuntimeActivity = (props: RuntimeActivityProps) => {
 					return <ActivityInput key={activityItem.id} activityItemInput={activityItem} fontInfo={props.fontInfo} positronConsoleInstance={props.positronConsoleInstance} />;
 				} else if (activityItem instanceof ActivityItemStream) {
 					if (activityItem.type === ActivityItemStreamType.OUTPUT) {
-						return <ActivityOutputStream key={activityItem.id} activityItemStream={activityItem} />;
+						return <ActivityOutputStream key={activityItem.id} activityItemStream={activityItem} positronConsoleInstance={props.positronConsoleInstance} />;
 					} else if (activityItem.type === ActivityItemStreamType.ERROR) {
-						return <ActivityErrorStream key={activityItem.id} activityItemStream={activityItem} />;
+						return <ActivityErrorStream key={activityItem.id} activityItemStream={activityItem} positronConsoleInstance={props.positronConsoleInstance} />;
 					} else {
 						// This indicates a bug. A new stream type was added but not handled here.
 						return null;
@@ -60,7 +60,13 @@ export const RuntimeActivity = (props: RuntimeActivityProps) => {
 				} else if (activityItem instanceof ActivityItemOutputHtml) {
 					return <ActivityOutputHtml key={activityItem.id} activityItemOutputHtml={activityItem} />;
 				} else if (activityItem instanceof ActivityItemOutputMessage) {
-					return <ActivityOutputMessage key={activityItem.id} activityItemOutputMessage={activityItem} />;
+					return (
+						<ActivityOutputMessage
+							key={activityItem.id}
+							activityItemOutputMessage={activityItem}
+							positronConsoleInstance={props.positronConsoleInstance}
+						/>
+					);
 				} else if (activityItem instanceof ActivityItemOutputPlot) {
 					return <ActivityOutputPlot key={activityItem.id} activityItemOutputPlot={activityItem} />;
 				} else if (activityItem instanceof ActivityItemErrorMessage) {

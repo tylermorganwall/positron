@@ -4,6 +4,7 @@
  *--------------------------------------------------------------------------------------------*/
 
 import { RuntimeItem } from '../classes/runtimeItem.js';
+import { CancellationToken } from '../../../../../base/common/cancellation.js';
 import { Event } from '../../../../../base/common/event.js';
 import { IDisposable } from '../../../../../base/common/lifecycle.js';
 import { ICodeEditor } from '../../../../../editor/browser/editorBrowser.js';
@@ -114,6 +115,27 @@ export interface IPositronConsoleService {
 	getConsoleWidth(): number;
 
 	/**
+	 * Register a console link provider contributed by an extension-host side provider.
+	 */
+	registerConsoleLinkProvider(
+		handle: number,
+		extensionId: string,
+		languageId: string,
+		provider: (
+			context: IPositronConsoleLinkContext,
+			token: CancellationToken
+		) => Promise<readonly IPositronConsoleLink[]>
+	): IDisposable;
+
+	/**
+	 * Resolve console links for a rendered output line.
+	 */
+	provideConsoleLinks(
+		context: IPositronConsoleLinkContext,
+		token: CancellationToken
+	): Promise<readonly IPositronConsoleLink[]>;
+
+	/**
 	 * Executes code in a PositronConsoleInstance.
 	 *
 	 * @param languageId The language ID.
@@ -168,6 +190,22 @@ export interface IPositronConsoleService {
 	 * @throws an error if the console instance or execution cannot be found.
 	 */
 	revealExecution(sessionId: string, executionId: string): void;
+}
+
+export interface IPositronConsoleLinkContext {
+	readonly sessionId: string;
+	readonly languageId: string;
+	readonly outputId?: string;
+	readonly line: string;
+}
+
+export interface IPositronConsoleLink {
+	readonly startIndex: number;
+	readonly length: number;
+	readonly target: URI;
+	readonly tooltip?: string;
+	readonly line?: number;
+	readonly column?: number;
 }
 
 /**

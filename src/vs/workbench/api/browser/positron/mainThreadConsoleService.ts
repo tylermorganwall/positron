@@ -3,10 +3,11 @@
  *  Licensed under the Elastic License 2.0. See LICENSE.txt for license information.
  *--------------------------------------------------------------------------------------------*/
 
-import { DisposableStore } from '../../../../base/common/lifecycle.js';
-import { ExtHostConsoleServiceShape, ExtHostPositronContext, MainPositronContext, MainThreadConsoleServiceShape } from '../../common/positron/extHost.positron.protocol.js';
+import { DisposableStore, IDisposable } from '../../../../base/common/lifecycle.js';
+import { URI } from '../../../../base/common/uri.js';
+import { ConsoleLinkDto, ExtHostConsoleServiceShape, ExtHostPositronContext, MainPositronContext, MainThreadConsoleServiceShape } from '../../common/positron/extHost.positron.protocol.js';
 import { extHostNamedCustomer, IExtHostContext } from '../../../services/extensions/common/extHostCustomers.js';
-import { IPositronConsoleInstance, IPositronConsoleService } from '../../../services/positronConsole/browser/interfaces/positronConsoleService.js';
+import { IPositronConsoleInstance, IPositronConsoleLink, IPositronConsoleService } from '../../../services/positronConsole/browser/interfaces/positronConsoleService.js';
 import { MainThreadConsole } from './mainThreadConsole.js';
 
 @extHostNamedCustomer(MainPositronContext.MainThreadConsoleService)
@@ -24,6 +25,7 @@ export class MainThreadConsoleService implements MainThreadConsoleServiceShape {
 	 * Kept in sync with consoles in `ExtHostConsoleService`
 	 */
 	private readonly _mainThreadConsolesBySessionId = new Map<string, MainThreadConsole>();
+	private readonly _consoleLinkProviderRegistrations = new Map<number, IDisposable>();
 
 	private readonly _proxy: ExtHostConsoleServiceShape;
 
@@ -77,6 +79,10 @@ export class MainThreadConsoleService implements MainThreadConsoleServiceShape {
 	}
 
 	dispose(): void {
+		for (const registration of this._consoleLinkProviderRegistrations.values()) {
+			registration.dispose();
+		}
+		this._consoleLinkProviderRegistrations.clear();
 		this._disposables.dispose();
 	}
 
@@ -132,5 +138,42 @@ export class MainThreadConsoleService implements MainThreadConsoleServiceShape {
 		}
 
 		mainThreadConsole.pasteText(text);
+	}
+
+	$registerConsoleLinkProvider(handle: number, extensionId: string, languageId: string): void {
+		this.$unregisterConsoleLinkProvider(handle);
+
+		const registration = this._positronConsoleService.registerConsoleLinkProvider(
+			handle,
+			extensionId,
+			languageId,
+			async (context, token) => {
+				const links = await this._proxy.$provideConsoleLinks(handle, context, token);
+				return links.map(link => this._reviveConsoleLink(link));
+			}
+		);
+
+		this._consoleLinkProviderRegistrations.set(handle, registration);
+	}
+
+	$unregisterConsoleLinkProvider(handle: number): void {
+		const registration = this._consoleLinkProviderRegistrations.get(handle);
+		if (!registration) {
+			return;
+		}
+
+		this._consoleLinkProviderRegistrations.delete(handle);
+		registration.dispose();
+	}
+
+	private _reviveConsoleLink(link: ConsoleLinkDto): IPositronConsoleLink {
+		return {
+			startIndex: link.startIndex,
+			length: link.length,
+			target: URI.revive(link.target),
+			tooltip: link.tooltip,
+			line: link.line,
+			column: link.column,
+		};
 	}
 }

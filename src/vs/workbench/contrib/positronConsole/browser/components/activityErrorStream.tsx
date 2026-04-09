@@ -9,10 +9,12 @@ import './activityErrorStream.css';
 // Other dependencies.
 import { ConsoleOutputLines } from './consoleOutputLines.js';
 import { ActivityItemStream } from '../../../../services/positronConsole/browser/classes/activityItemStream.js';
+import { IPositronConsoleInstance } from '../../../../services/positronConsole/browser/interfaces/positronConsoleService.js';
 
 // ActivityErrorStreamProps interface.
 export interface ActivityErrorStreamProps {
 	activityItemStream: ActivityItemStream;
+	positronConsoleInstance: IPositronConsoleInstance;
 }
 
 /**
@@ -24,7 +26,13 @@ export const ActivityErrorStream = (props: ActivityErrorStreamProps) => {
 	// Render.
 	return (
 		<div className='activity-error-stream'>
-			<ConsoleOutputLines outputLines={props.activityItemStream.outputLines} />
+			<ConsoleOutputLines
+				outputLines={props.activityItemStream.outputLines}
+				linkContext={{
+					sessionId: props.positronConsoleInstance.sessionMetadata.sessionId,
+					languageId: props.positronConsoleInstance.runtimeMetadata.languageId,
+				}}
+			/>
 		</div>
 	);
 };

@@ -1694,6 +1694,29 @@ declare module 'positron' {
 		pasteText(text: string): void;
 	}
 
+	export interface ConsoleLink {
+		readonly startIndex: number;
+		readonly length: number;
+		readonly target: vscode.Uri;
+		readonly tooltip?: string;
+		readonly line?: number;
+		readonly column?: number;
+	}
+
+	export interface ConsoleLinkContext {
+		readonly sessionId: string;
+		readonly languageId: string;
+		readonly outputId?: string;
+		readonly line: string;
+	}
+
+	export interface ConsoleLinkProvider {
+		provideConsoleLinks(
+			context: ConsoleLinkContext,
+			token: vscode.CancellationToken
+		): vscode.ProviderResult<ConsoleLink[]>;
+	}
+
 	/**
 	 * ConnectionsInput interface defines the structure for connection inputs.
 	 */
@@ -1969,6 +1992,20 @@ declare module 'positron' {
 		 *   that `languageId` exists.
 		 */
 		export function getConsoleForLanguage(languageId: string): Thenable<Console | undefined>;
+
+		/**
+		 * Register a provider for clickable links in the Positron Console.
+		 *
+		 * Providers are matched by runtime language id and are invoked on rendered
+		 * console output lines before display.
+		 *
+		 * @param languageId The runtime language id, for example `r` or `python`.
+		 * @param provider The provider that returns link ranges for a console line.
+		 */
+		export function registerConsoleLinkProvider(
+			languageId: string,
+			provider: ConsoleLinkProvider
+		): vscode.Disposable;
 
 		/**
 		 * Fires when the width of the console input changes. The new width is passed as
