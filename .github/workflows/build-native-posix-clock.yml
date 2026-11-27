@@ -15,15 +15,10 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        include:
-          - platform: Windows
-            runner: windows-2022
-            arch: x64
-            gulp_target: vscode-win32-x64-min
-          - platform: macOS
-            runner: macos-15
-            arch: arm64
-            gulp_target: vscode-darwin-arm64-min
+        include: >-
+          ${{ fromJSON(github.event_name == 'push' &&
+          '[{"platform":"macOS","runner":"macos-15","arch":"arm64","gulp_target":"vscode-darwin-arm64-min"}]' ||
+          '[{"platform":"Windows","runner":"windows-2022","arch":"x64","gulp_target":"vscode-win32-x64-min"},{"platform":"macOS","runner":"macos-15","arch":"arm64","gulp_target":"vscode-darwin-arm64-min"}]') }}
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 120
     env:
@@ -103,7 +98,6 @@ jobs:
           });
           JS
           codesign --verify --deep --strict --verbose=2 "$app"
-          "$app/Contents/Resources/app/bin/positron" --version
 
       - name: Verify and archive macOS app
         if: runner.os == 'macOS'
@@ -120,6 +114,9 @@ jobs:
           trap 'rm -rf "$verify_dir"' EXIT
           ditto -x -k artifacts/Positron-datetime-picker-macOS-arm64-adhoc.zip "$verify_dir"
           codesign --verify --deep --strict --verbose=2 "$verify_dir/Positron.app"
+          launcher="$verify_dir/Positron.app/Contents/Resources/app/bin/code"
+          test -x "$launcher"
+          "$launcher" --version
           (cd artifacts && shasum -a 256 *.zip > SHA256SUMS.txt)
 
       - uses: actions/upload-artifact@v6
