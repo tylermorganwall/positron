@@ -45,6 +45,8 @@ jobs:
 
       - name: Install macOS dependencies
         if: runner.os == 'macOS'
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
         run: |
           test "$(uname -m)" = arm64
           npm ci --prefix build --no-audit --no-fund --fetch-timeout 120000
