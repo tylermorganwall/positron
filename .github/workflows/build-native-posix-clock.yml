@@ -1,0 +1,104 @@
+name: Positron datetime picker builds
+
+on:
+  push:
+    branches: [build/native-posix-clock-2026-11-27]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: read
+
+jobs:
+  package:
+    name: ${{ matrix.platform }} ${{ matrix.arch }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: Windows
+            runner: windows-2022
+            arch: x64
+            gulp_target: vscode-win32-x64-min
+          - platform: macOS
+            runner: macos-15
+            arch: arm64
+            gulp_target: vscode-darwin-arm64-min
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 120
+    env:
+      PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: '1'
+      ELECTRON_SKIP_BINARY_DOWNLOAD: '1'
+      POSITRON_GITHUB_RO_PAT: ${{ github.token }}
+      npm_config_arch: ${{ matrix.arch }}
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+          submodules: recursive
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version-file: .nvmrc
+
+      - name: Set up Windows native dependencies
+        if: runner.os == 'Windows'
+        uses: ./.github/actions/setup-build-env-windows
+        with:
+          skip-cache: 'true'
+
+      - name: Install macOS dependencies
+        if: runner.os == 'macOS'
+        run: |
+          test "$(uname -m)" = arm64
+          npm ci --prefix build --no-audit --no-fund --fetch-timeout 120000
+          npm ci --no-audit --no-fund --fetch-timeout 120000
+
+      - name: Test native datetime picker
+        run: npm run test:positron -- src/vs/editor/contrib/positronPosixClock/test
+
+      - name: Build Positron desktop app
+        run: npm run gulp -- ${{ matrix.gulp_target }}
+
+      - name: Verify and archive Windows app
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $app = (Resolve-Path ..\px64).Path
+          if (!(Test-Path -LiteralPath "$app\Positron.exe")) { throw 'Missing Positron.exe' }
+          $workbench = "$app\resources\app\out\vs\workbench\workbench.desktop.main.js"
+          if (!(Test-Path -LiteralPath $workbench) -or !(Select-String -Path $workbench -SimpleMatch 'posix-clock-widget' -Quiet)) { throw 'Datetime picker is absent from the packaged workbench' }
+          New-Item -ItemType Directory -Path artifacts | Out-Null
+          $zip = "$PWD\artifacts\Positron-datetime-picker-Windows-x64-unsigned.zip"
+          Push-Location $app
+          try {
+            7z a -tzip -mx=1 $zip '*'
+            if ($LASTEXITCODE -ne 0) { throw 'ZIP creation failed' }
+          } finally { Pop-Location }
+          7z t $zip
+          if ($LASTEXITCODE -ne 0) { throw 'ZIP validation failed' }
+          $digest = (Get-FileHash $zip -Algorithm SHA256).Hash.ToLowerInvariant()
+          "$digest  $(Split-Path -Leaf $zip)" | Set-Content -Path artifacts\SHA256SUMS.txt -Encoding ascii
+
+      - name: Verify and archive macOS app
+        if: runner.os == 'macOS'
+        shell: bash
+        run: |
+          set -euo pipefail
+          app=../VSCode-darwin-arm64/Positron.app
+          test -x "$app/Contents/MacOS/Positron"
+          file "$app/Contents/MacOS/Positron" | grep -q 'arm64'
+          grep -Fq 'posix-clock-widget' "$app/Contents/Resources/app/out/vs/workbench/workbench.desktop.main.js"
+          mkdir artifacts
+          ditto -c -k --keepParent "$app" artifacts/Positron-datetime-picker-macOS-arm64-unsigned.zip
+          unzip -tq artifacts/Positron-datetime-picker-macOS-arm64-unsigned.zip
+          (cd artifacts && shasum -a 256 *.zip > SHA256SUMS.txt)
+
+      - uses: actions/upload-artifact@v6
+        with:
+          name: Positron-datetime-picker-${{ matrix.platform }}-${{ matrix.arch }}-unsigned
+          path: artifacts/*
+          if-no-files-found: error
+          retention-days: 14

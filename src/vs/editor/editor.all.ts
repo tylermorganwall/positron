@@ -70,6 +70,7 @@ import './contrib/floatingMenu/browser/floatingMenu.contribution.js';
 import './contrib/positronEditorActions/browser/positronEditorActions.js';
 import './contrib/positronStatementRange/browser/provideStatementRange.js';
 import './contrib/positronHelp/browser/provideHelpTopic.js';
+import './contrib/positronPosixClock/browser/posixClock.contribution.js';
 // --- End Positron ---
 
 // Load up these strings even in VSCode, even if they are not used

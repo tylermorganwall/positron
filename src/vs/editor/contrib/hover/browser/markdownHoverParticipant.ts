@@ -38,6 +38,9 @@ import { HoverProviderResult } from './getHover.js';
 import { ICommandService } from '../../../../platform/commands/common/commands.js';
 import { HoverStartSource } from './hoverOperation.js';
 import { ScrollEvent } from '../../../../base/common/scrollable.js';
+// --- Start Positron ---
+import { findPosixClockCall } from '../../positronPosixClock/common/posixClock.js';
+// --- End Positron ---
 
 const $ = dom.$;
 const increaseHoverVerbosityIcon = registerIcon('hover-increase-verbosity', Codicon.addSmall, nls.localize('increaseHoverVerbosity', 'Icon for increaseing hover verbosity.'));
@@ -175,6 +178,15 @@ export class MarkdownHoverParticipant implements IEditorHoverParticipant<Markdow
 		}
 
 		const model = this._editor.getModel();
+
+		// --- Start Positron ---
+		// The native date-time widget replaces language documentation for editable calls.
+		// Unsupported calls and read-only editors retain their normal documentation.
+		if (model.getLanguageId() === 'r' && !this._editor.getOption(EditorOption.readOnly)
+			&& findPosixClockCall(model.getValue(), model.getOffsetAt(anchor.range.getStartPosition()))) {
+			return AsyncIterableProducer.EMPTY;
+		}
+		// --- End Positron ---
 
 		const hoverProviderRegistry = this._languageFeaturesService.hoverProvider;
 		if (!hoverProviderRegistry.has(model)) {

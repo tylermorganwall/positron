@@ -1,0 +1,207 @@
+/*---------------------------------------------------------------------------------------------
+ *  Copyright (C) 2026 Posit Software, PBC. All rights reserved.
+ *  Licensed under the Elastic License 2.0. See LICENSE.txt for license information.
+ *--------------------------------------------------------------------------------------------*/
+
+.posix-clock-widget {
+	display: grid;
+	grid-template-columns: minmax(200px, 280px) 160px;
+	gap: 8px;
+	padding: 8px;
+	color: var(--vscode-editorHoverWidget-foreground);
+	background: var(--vscode-editorHoverWidget-background);
+	font-family: var(--vscode-font-family);
+	font-size: 11px;
+	line-height: normal;
+	box-sizing: border-box;
+	width: 464px;
+	max-width: 100%;
+	color-scheme: light;
+}
+
+.vs-dark .posix-clock-widget,
+.hc-black .posix-clock-widget {
+	color-scheme: dark;
+}
+
+.posix-clock-widget .posix-clock-map-column,
+.posix-clock-widget .posix-clock-date-column {
+	display: flex;
+	flex-direction: column;
+	min-width: 0;
+	gap: 4px;
+}
+
+.posix-clock-widget .posix-clock-map-frame {
+	position: relative;
+}
+
+.posix-clock-widget .posix-clock-map {
+	display: block;
+	width: 100%;
+	height: 140px;
+	background: var(--vscode-editor-background);
+	border: 1px solid var(--vscode-editorHoverWidget-border);
+	box-sizing: border-box;
+}
+
+.posix-clock-widget .posix-clock-map:not(.zoomed),
+.posix-clock-widget .posix-clock-map:not(.zoomed) .posix-clock-zone {
+	cursor: zoom-in;
+}
+
+.posix-clock-widget .posix-clock-map.zoomed .posix-clock-zone {
+	vector-effect: non-scaling-stroke;
+	stroke-width: 0.6px;
+}
+
+.posix-clock-widget .posix-clock-land {
+	fill: var(--vscode-descriptionForeground);
+	fill-opacity: 0.5;
+	pointer-events: none;
+}
+
+.posix-clock-widget .posix-clock-zone {
+	fill: transparent;
+	stroke: var(--vscode-editorHoverWidget-foreground);
+	stroke-opacity: 0.28;
+	stroke-width: 0.5;
+	cursor: pointer;
+}
+
+.posix-clock-widget .posix-clock-zone:hover,
+.posix-clock-widget .posix-clock-zone.selected {
+	fill: var(--vscode-focusBorder);
+	fill-opacity: 0.4;
+	stroke: var(--vscode-focusBorder);
+	stroke-opacity: 1;
+}
+
+.posix-clock-widget .posix-clock-twilight,
+.posix-clock-widget .posix-clock-night {
+	fill: #000;
+	pointer-events: none;
+}
+
+.posix-clock-widget .posix-clock-twilight {
+	fill-opacity: 0.15;
+}
+
+.posix-clock-widget .posix-clock-night {
+	fill-opacity: 0.35;
+}
+
+.posix-clock-widget select,
+.posix-clock-widget input,
+.posix-clock-widget button {
+	font: inherit;
+	box-sizing: border-box;
+	color: var(--vscode-input-foreground);
+	background: var(--vscode-input-background);
+	border: 1px solid var(--vscode-input-border, transparent);
+	border-radius: 2px;
+	min-width: 0;
+}
+
+.posix-clock-widget select,
+.posix-clock-widget input {
+	height: 24px;
+	padding: 0 4px;
+}
+
+.posix-clock-widget .posix-clock-timezone {
+	width: 100%;
+	margin-top: auto;
+}
+
+.posix-clock-widget input[type='time'] {
+	width: 100%;
+}
+
+.posix-clock-widget .posix-clock-month-row {
+	display: flex;
+	height: 24px;
+	gap: 2px;
+}
+
+.posix-clock-widget .posix-clock-month-row input {
+	flex: 1;
+	width: 112px;
+	padding: 0 2px;
+}
+
+.posix-clock-widget .posix-clock-month-row button {
+	width: 20px;
+	font-size: 16px;
+	padding: 0;
+}
+
+.posix-clock-widget .posix-clock-weekdays,
+.posix-clock-widget .posix-clock-calendar {
+	display: grid;
+	grid-template-columns: repeat(7, 1fr);
+	text-align: center;
+}
+
+.posix-clock-widget .posix-clock-weekdays {
+	color: var(--vscode-descriptionForeground);
+	font-size: 10px;
+	line-height: 12px;
+}
+
+.posix-clock-widget .posix-clock-calendar {
+	grid-template-rows: repeat(6, 17px);
+}
+
+.posix-clock-widget button {
+	padding: 0;
+	cursor: pointer;
+	color: inherit;
+	background: transparent;
+	border: 1px solid transparent;
+}
+
+.posix-clock-widget button.adjacent-month {
+	color: var(--vscode-descriptionForeground);
+	opacity: 0.6;
+}
+
+.posix-clock-widget button.selected {
+	background: var(--vscode-list-activeSelectionBackground);
+	color: var(--vscode-list-activeSelectionForeground);
+}
+
+.posix-clock-widget button:hover {
+	background: var(--vscode-list-hoverBackground);
+	color: var(--vscode-list-hoverForeground);
+}
+
+.posix-clock-widget button.posix-clock-zoom-out {
+	position: absolute;
+	top: 5px;
+	right: 5px;
+	width: 20px;
+	height: 20px;
+	border-color: var(--vscode-editorHoverWidget-border);
+	color: var(--vscode-input-foreground);
+	background: var(--vscode-input-background);
+	font-size: 15px;
+}
+
+.posix-clock-widget button.posix-clock-zoom-out:hover {
+	border-color: var(--vscode-focusBorder);
+}
+
+.posix-clock-widget :focus-visible {
+	outline: 1px solid var(--vscode-focusBorder);
+	outline-offset: -1px;
+}
+
+.posix-clock-widget input[aria-invalid='true'] {
+	border-color: var(--vscode-inputValidation-errorBorder);
+}
+
+.hc-black .posix-clock-widget .posix-clock-zone,
+.hc-light .posix-clock-widget .posix-clock-zone {
+	stroke-opacity: 0.8;
+}
